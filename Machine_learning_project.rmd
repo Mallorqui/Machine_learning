@@ -1,0 +1,119 @@
+---
+title: "Machine Learning Project"
+author: "Miguel Alomar"
+date: "Wednesday, June 17th 2015"
+output: html_document
+---
+
+##Overview
+
+This presentation for the Coursera class "Practice Machine Learning" will show how I applied
+a prediction model to predict the manner in which a fitness exercise is done.
+It will go through the following steps:
+* Loading
+* Selecting the variables to use
+* Visualizations
+* Creating model
+* Predicting
+
+##Loading the data
+
+Loading the data is done as usual.
+```{r}
+library(caret);
+library(kernlab);
+library("ggplot2", lib.loc="C:/Program Files/R/R-3.1.1/library")
+pml <- read.csv("C:/Personal/coursera/Machine_learning/pml-training.csv", sep=",",
+                na.strings = c("NA","#DIV/0!"))
+pmltest <- read.csv("C:/Personal/coursera/Machine_learning/pml-testing.csv", sep=",",
+                    na.strings = c("NA","#DIV/0!"))
+```
+
+
+
+
+---
+##Selecting variables
+
+The datasets have 160 variables, not all of them are useful or have values.
+These are the variables I selected, to decide which ones to use I discarded the ones that looked
+like identifiers or time variables, then in a second step I selected the numeric variables that 
+didn't have NA values.
+
+```{r}
+set.seed(32343)
+SmallPml <- pml[,c("roll_belt","pitch_belt","yaw_belt","total_accel_belt",
+                   "gyros_belt_x","gyros_belt_y","gyros_belt_z",
+                   "accel_belt_x","accel_belt_y","accel_belt_z",
+                   "magnet_belt_x","magnet_belt_y","magnet_belt_z",
+                   "roll_arm","pitch_arm","yaw_arm",
+                   "total_accel_arm",
+                   "gyros_arm_x","gyros_arm_y","gyros_arm_z",
+                   "accel_arm_x","accel_arm_y","accel_arm_z",
+                   "magnet_arm_x","magnet_arm_y","magnet_arm_z",
+                   "roll_dumbbell","pitch_dumbbell","yaw_dumbbell",
+                   "classe"       )              ]
+SmallTest <- pmltest[,c("roll_belt","pitch_belt","yaw_belt","total_accel_belt",
+                   "gyros_belt_x","gyros_belt_y","gyros_belt_z",
+                   "accel_belt_x","accel_belt_y","accel_belt_z",
+                   "magnet_belt_x","magnet_belt_y","magnet_belt_z",
+                   "roll_arm","pitch_arm","yaw_arm",
+                   "total_accel_arm",
+                   "gyros_arm_x","gyros_arm_y","gyros_arm_z",
+                   "accel_arm_x","accel_arm_y","accel_arm_z",
+                   "magnet_arm_x","magnet_arm_y","magnet_arm_z",
+                   "roll_dumbbell","pitch_dumbbell","yaw_dumbbell" )]
+
+
+```
+
+---
+##Visualizations
+I created several plots to try to find patters or useful variables but it didn't help much.
+
+```{r}
+featurePlot(x=SmallPml[c("gyros_belt_x","gyros_belt_y","gyros_belt_z")],
+            y=SmallPml$classe,
+            plot="pairs"
+            )
+```
+
+##Creating model
+To create the model I selected only 25% of the data in my training set, I did that to get
+around the memory limitations of my computer, plus I found that 25% was enough to get good
+predictions.
+I did try with several methods. rf: Random forest, rpart: Predict tree, gbm:adaboost and few more.
+The one that gave me best results was Random forest so that is the one I went with.
+
+```{r}
+inTrain <- createDataPartition(y=SmallPml$classe,p=0.25, list=FALSE);
+training <- SmallPml[inTrain,]
+testing  <- SmallPml[-inTrain,]
+dim(training)
+modFit <- train(classe ~ .,
+                data=training,
+                method="rf",
+                prox=TRUE)
+modFit
+plot(modFit)
+```
+
+
+
+---
+##Predicting
+Now we use predict function to see how accurate our model is.
+The Accuracy was around 93.5%
+
+```{r}
+testing <- testing[complete.cases(testing),]
+pred <- predict(modFit,testing)
+testing$predRight <- pred==testing$classe
+table(pred,testing$classe)
+```
+
+and finally we using against the pmltest data to generate the 20 predictions.
+Sure enough, I got 19 out of 20 cases correct, that is 95% of the cases.
+```{r}
+pred <- predict(modFit,SmallTest)
+```
